@@ -27,11 +27,12 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
   async findAll(paginationDTO: PaginationDTO) {
     const { page, limit } = paginationDTO;
 
-    const totalPages = await this.product.count();
+    const totalPages = await this.product.count({ where: { available: true } });
     const lastPage = Math.ceil(totalPages / limit);
 
     return {
       data: await this.product.findMany({
+        where: { available: true },
         take: limit,
         skip: (page - 1) * limit,
       }),
@@ -45,7 +46,7 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
 
   async findOne(id: number) {
     const resProduct = await this.product.findUnique({
-      where: { id: id },
+      where: { id: id, available: true },
     });
 
     if (!resProduct) {
@@ -57,11 +58,45 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
     };
   }
 
-  update(id: number, updateProductDto: UpdateProductDto) {
-    return `This action updates a #${id} product`;
+  async update(id: number, updateProductDto: UpdateProductDto) {
+
+    const {id: _, ...data} = updateProductDto;
+
+    let updatedProduct;
+
+    try {
+      updatedProduct = await this.product.update({
+        where: { id: id },  
+        data: data,
+      });
+    } catch (error) {
+      throw new NotFoundException(`Product with id ${id} not found`);
+    }
+
+    // if (!updatedProduct) {
+    //   // console.log(`Product with id ${id} not found`);
+    // }
+
+    return {
+      data: updatedProduct,
+    };
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} product`;
+  async remove(id: number) {
+    let product;
+
+    try {
+      // deletedProduct = await this.product.delete({
+      //   where: { id: id },
+      // });
+      product = await this.product.update({
+        where: { id: id },
+        data: { available: false },
+      });
+    } catch (error) {
+      throw new NotFoundException(`Product with id ${id} not found`);
+    }
+
+    return product;
   }
 }
